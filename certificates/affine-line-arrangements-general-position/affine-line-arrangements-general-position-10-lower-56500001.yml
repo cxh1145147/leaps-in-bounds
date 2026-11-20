@@ -1,0 +1,24 @@
+constant: affine-line-arrangements-general-position-10
+bound: lower
+value: 56500001
+kind: witness
+witness:
+  format: generator
+  file: affine-line-arrangements-general-position-10-lower-56500001.py
+  output: lines
+  output_sha256: '68ef7087284da2332c2253ca53943b0392417b236e2fcd5b93b8f0b32c919328'
+submitted_by: bargainlandz-code
+date: 2026-11-20
+notes: >-
+  Badaoui–Vaughan (Sami Hani Badaoui and Sarah Ellen Mary Vaughan),
+  with computational assistance from GPT-6 and local auditing. This
+  standard-library Python 3 generator uses a fixed seed and elementary
+  variable-slope draws; it does not depend on the unpublished 113-million
+  construction. It emits 136,499,992 geometrically valid ten-line
+  candidate rows (19,790,153,424 bytes), which may contain repeated
+  combinatorial types. Local independent C++ verification using exact
+  crossing-order keys and a conservative one-sided Bloom filter counted
+  56,813,040 definitely distinct types, and the bound claimed is a
+  conservative value below that count. The complete Python witness was
+  generated locally and its SHA-256 matched the independently generated
+  C++ reference witness.
