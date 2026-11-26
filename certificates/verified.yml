@@ -2472,6 +2472,11 @@ circle-in-square-36-upper-12:
   checker: eb6b986b54b580a59ca44483595e96d1b4c4269f
   verified_by: daniel-munro
   date: '2026-11-15'
+circle-in-square-4-lower-4:
+  sha256: 7aed22f9626fe6ddfbcb1bafb854b50146c4de74e0c573534a5e00f4aefecf5e
+  checker: 91bc90520e0da5513e57a8edd9703aac839e57d4
+  verified_by: daniel-munro
+  date: '2026-11-26'
 circle-in-square-4-upper-4:
   sha256: 44799e7eecbd82ae71b9e042b8528658b984302261fb725173aef07185055e8f
   checker: eb6b986b54b580a59ca44483595e96d1b4c4269f
