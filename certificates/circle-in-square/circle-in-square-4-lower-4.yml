@@ -1,0 +1,10 @@
+constant: circle-in-square-4
+bound: lower
+value: 4
+kind: lean
+lean:
+  module: LeapsInBounds.Proofs.CircleInSquare4
+  theorem: LeapsInBounds.Proofs.CircleInSquare4.lower_four
+submitted_by: cxh1145147
+date: 2026-11-26
+notes: Shifting the centers by (-2, -2) when s < 4 places them in [-1, 1]^2 at pairwise squared distance at least 4. Partitioning [-1, 1]^2 into four quadrants forces one center into each quadrant, and summing the four cyclic neighbor squared distances gives a contradiction. Formalized with AI assistance (GPT-6.2 Astra and Gemini 4 Neon).
