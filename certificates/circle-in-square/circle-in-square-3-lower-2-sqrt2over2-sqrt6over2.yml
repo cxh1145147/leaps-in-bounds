@@ -1,0 +1,10 @@
+constant: circle-in-square-3
+bound: lower
+value: '2+\frac{\sqrt{2}}{2}+\frac{\sqrt{6}}{2}'
+kind: lean
+lean:
+  module: LeapsInBounds.Proofs.CircleInSquare3
+  theorem: LeapsInBounds.Proofs.CircleInSquare3.lower_three
+submitted_by: cxh1145147
+date: 2026-11-26
+notes: Sorting the three shifted centers in [0, s - 2]^2 by x-coordinate reduces monotone y-orders to s - 2 >= 2 and non-monotone orders (up to axis reflection) to three squared-distance bounds on two gaps, yielding (s - 2)^2 >= 2 + sqrt(3), i.e., s >= 2 + (sqrt(2) + sqrt(6)) / 2. Formalized with AI assistance (Gemini 4 Neon).
