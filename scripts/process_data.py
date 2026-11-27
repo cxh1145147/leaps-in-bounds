@@ -259,9 +259,15 @@ def attach_certificates(
 EVIDENCE_RANK = {"verified": 3, "attested": 2, "literature": 1}
 
 
-def rounded(approx: int | float) -> int | float:
-    """Round a certificate's value like literature values: integers exactly,
-    other values to 7 significant digits."""
+def cert_approx(cert: Mapping[str, Any]) -> int | float:
+    """A certificate's value, rounded like literature values: integers
+    exactly, other values to 7 significant digits. Integer values are taken
+    from the certificate, not its float approx, which can't hold an integer as
+    large as (mn)! exactly."""
+    value = cert["value"]
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    approx = cert["approx"]
     if float(approx).is_integer():
         return int(approx)
     return float(f"{approx:.7g}")
@@ -299,7 +305,7 @@ def bound_events(
     earliest.
     """
     records = [("source", u, u["value"].decimal_approx, u["date"]) for u in updates]
-    records += [("certificate", c, rounded(c["approx"]), c["date"]) for c in certificates]
+    records += [("certificate", c, cert_approx(c), c["date"]) for c in certificates]
     records.sort(key=lambda r: (r[3] is not None, r[3] or "", r[0] == "source"))
 
     events = []
@@ -346,7 +352,7 @@ def bound_events(
         approx = event["value"].decimal_approx
         candidates = [
             c for c in certificates
-            if at_least_as_strong(side, rounded(c["approx"]), approx)
+            if at_least_as_strong(side, cert_approx(c), approx)
         ]
         candidates.sort(key=lambda c: (
             -EVIDENCE_RANK[c["status"]],
@@ -400,7 +406,7 @@ def build_histories(constants: dict[str, dict[str, Any]]) -> None:
             constant[f"{side}_bound_evidence"] = last["evidence"]["tier"] if last else None
             cert = None
             for c in certs:  # In date order, so ties go to the earliest
-                if c["status"] == "verified" and (cert is None or is_better(side, c["approx"], cert["approx"])):
+                if c["status"] == "verified" and (cert is None or is_better(side, cert_approx(c), cert_approx(cert))):
                     cert = c
             constant[f"verified_{side}_bound"] = Value(str(cert["value"])) if cert else None
             constant[f"verified_{side}_certificate"] = cert["id"] if cert else None
@@ -532,7 +538,7 @@ def list_certificates(constants: Mapping[str, Mapping[str, Any]]) -> list[dict[s
                 role, event = "discovery", discovered
             elif supported:
                 role, event = "evidence", supported[-1]
-            elif any(at_least_as_strong(side, rounded(cert["approx"]), e["value"].decimal_approx) for e in events):
+            elif any(at_least_as_strong(side, cert_approx(cert), e["value"].decimal_approx) for e in events):
                 role, event = "superseded", None
             else:
                 role, event = "weaker", None
@@ -664,17 +670,30 @@ def calculate_family_stats(
     return stats
 
 
+def in_literature(constant: Mapping[str, Any]) -> bool:
+    """Whether the literature gives any bound for a constant, on either side,
+    other than a trivial one. Discoveries for constants it doesn't are left
+    out of the contributions page's summaries, since a constant no one has
+    published on is easy to be first at."""
+    return any(u["source"] != "trivial" for u in constant["updates"])
+
+
 def list_discoveries(constants: Mapping[str, Mapping[str, Any]], latest: int = 50) -> dict[str, list[dict[str, Any]]]:
     """List discoveries for the contributions page: the `latest` dated ones,
     newest first, and all those made by certificates, under "certificate".
-    Each gives the bound it improved on, if any. Discoveries by certificates
-    that have since been improved on are left out of both, so that a run of
-    incremental improvements shows only the latest, and counted under
-    "certificate_improved". Call after build_histories, before the values are
-    written out.
+    Each gives the bound it improved on, if any. Discoveries for constants
+    with no bound in the literature (see in_literature) are left out of both
+    and counted under "certificate_unstudied". Discoveries by certificates
+    that have since been improved on are left out of "certificate", which
+    lists only current bounds, and counted under "certificate_improved". Call
+    after build_histories, before the values are written out.
     """
     rows = []
+    unstudied = 0
     for constant_id, constant in constants.items():
+        if not in_literature(constant):
+            unstudied += sum(e["discovery"]["kind"] == "certificate" for e in constant["history"])
+            continue
         for side in ["lower", "upper"]:
             events = [e for e in constant["history"] if e["type"] == f"{side}_bound"]
             for i, event in enumerate(events):
@@ -696,16 +715,18 @@ def list_discoveries(constants: Mapping[str, Mapping[str, Any]], latest: int = 5
                 })
     rows.sort(key=lambda row: (row["constant"], row["bound"]))
     rows.sort(key=lambda row: row["date"] or "", reverse=True)
-    improved = [row for row in rows if row["discovery_kind"] == "certificate" and not row["current"]]
-    rows = [row for row in rows if row["discovery_kind"] != "certificate" or row["current"]]
+    certificate = [row for row in rows if row["discovery_kind"] == "certificate"]
+    improved = [row for row in certificate if not row["current"]]
     return {
         "latest": [row for row in rows if row["date"] is not None][:latest],
-        "certificate": [row for row in rows if row["discovery_kind"] == "certificate"],
+        "certificate": [row for row in certificate if row["current"]],
         "certificate_improved": len(improved),
+        "certificate_unstudied": unstudied,
     }
 
 
 def list_contributors(
+    constants: Mapping[str, Mapping[str, Any]],
     families: Mapping[str, Mapping[str, Any]],
     sources: Mapping[str, Mapping[str, Any]],
     updates: list[Mapping[str, Any]],
@@ -716,6 +737,8 @@ def list_contributors(
     a certificate received another way: the sources each added, the bounds
     from the literature citing them, and the certificates that are the best
     evidence for a bound discovered earlier or the discovery of a new one.
+    New bounds for constants with no bound in the literature (see
+    in_literature) aren't counted.
     Families are credited too but not counted here. Most new bounds first.
     """
     contributors: dict[str, dict[str, Any]] = {}
@@ -745,7 +768,7 @@ def list_contributors(
         if source is not None and source.get("added_by") is not None:
             credit(source["added_by"], source["added_by"])["bounds_sourced"] += 1
     for cert in certificates:
-        if cert["role"] == "discovery":
+        if cert["role"] == "discovery" and in_literature(constants[cert["constant"]]):
             credit(cert["submitted_by"], cert["submitted_by_github"])["new_bounds"] += 1
         elif cert["role"] == "evidence":
             credit(cert["submitted_by"], cert["submitted_by_github"])["bounds_verified"] += 1
@@ -829,7 +852,7 @@ def main() -> None:
         yaml.dump(list_discoveries(constants), file, sort_keys=False)
 
     with open("_data/contributors.yml", "w") as file:
-        yaml.dump(list_contributors(families, sources, updates, certificate_rows), file, sort_keys=False)
+        yaml.dump(list_contributors(constants, families, sources, updates, certificate_rows), file, sort_keys=False)
 
     # Save combined updates for download
     for update in updates:
